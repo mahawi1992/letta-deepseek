@@ -1,0 +1,18 @@
+name: letta-deepseek
+requirements:
+  - lightning>=2.1.0
+  - gradio>=4.0.0
+  - letta>=0.2.0
+  - python-dotenv
+  - requests
+  - langchain
+  - langchain-community
+  - tavily-python
+
+compute:
+  instance_type: cpu-medium
+  disk_size: 10GB
+
+env:
+  DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+  TAVILY_API_KEY: ${TAVILY_API_KEY}
