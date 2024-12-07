@@ -8,57 +8,71 @@ class MemoryOptimizer:
     def __init__(self, client, agent_id: str):
         self.client = client
         self.agent_id = agent_id
-        self.block_categories = {
-            'code': 'Programming code and patterns',
-            'research': 'Research findings and documentation',
-            'api': 'API documentation and usage',
-            'best_practices': 'Best practices and guidelines',
-            'patterns': 'Design patterns and architecture',
-            'security': 'Security guidelines and implementations',
-            'performance': 'Performance optimization techniques'
+        self.optimization_config = {
+            'cleanup_threshold_days': 90,
+            'consolidation_similarity_threshold': 0.8,
+            'max_versions_to_keep': 3,
+            'memory_refresh_interval_days': 30
         }
 
-    def consolidate_memory(self) -> None:
-        archival_memory = self.client.get_archival_memory(self.agent_id)
+    async def optimize_memory(self) -> None:
+        """Run complete memory optimization process"""
+        await self.consolidate_similar_memories()
+        await self.cleanup_old_memories()
+        await self.optimize_memory_structure()
+        await self.update_memory_indices()
+
+    async def consolidate_similar_memories(self) -> None:
+        """Consolidate similar memories to reduce redundancy"""
+        memories = await self._get_all_memories()
         consolidated = defaultdict(list)
         
-        for memory in archival_memory:
-            if memory.text.startswith("DOCUMENTATION_"):
-                try:
-                    doc_data = json.loads(memory.text.split(": ", 1)[1])
-                    key = f"{doc_data['type']}_{doc_data['content'].get('topic', '')}"
-                    consolidated[key].append(doc_data)
-                except json.JSONDecodeError:
-                    continue
-
-        for key, entries in consolidated.items():
-            if len(entries) > 1:
-                merged_entry = self._merge_entries(entries)
-                self._update_memory_entries(key, merged_entry)
-
-    def _merge_entries(self, entries: List[Dict]) -> Dict:
-        entries.sort(key=lambda x: x['timestamp'], reverse=True)
-        base_entry = entries[0].copy()
+        # Group similar memories
+        for memory in memories:
+            key = self._generate_memory_key(memory)
+            consolidated[key].append(memory)
         
-        for entry in entries[1:]:
-            self._recursive_merge(base_entry['content'], entry['content'])
+        # Merge similar groups
+        for key, group in consolidated.items():
+            if len(group) > 1:
+                merged = await self._merge_memory_group(group)
+                await self._update_memory(key, merged)
+
+    async def cleanup_old_memories(self) -> None:
+        """Remove outdated memories while preserving important ones"""
+        memories = await self._get_all_memories()
+        current_time = datetime.now()
+        
+        for memory in memories:
+            age = (current_time - datetime.fromisoformat(memory['timestamp'])).days
             
-        base_entry['version'] = str(float(base_entry['version']) + 0.1)
-        base_entry['merged_from'] = len(entries)
-        return base_entry
+            if age > self.optimization_config['cleanup_threshold_days']:
+                if not self._is_memory_important(memory):
+                    await self._remove_memory(memory['id'])
+                else:
+                    await self._archive_memory(memory)
 
-    def _recursive_merge(self, base: Dict, new: Dict) -> None:
-        for key, value in new.items():
-            if key not in base:
-                base[key] = value
-            elif isinstance(base[key], dict) and isinstance(value, dict):
-                self._recursive_merge(base[key], value)
-            elif isinstance(base[key], list) and isinstance(value, list):
-                base[key] = list(set(base[key] + value))
+    async def optimize_memory_structure(self) -> None:
+        """Optimize memory storage structure"""
+        # Implement memory structure optimization
+        pass
 
-    def _update_memory_entries(self, key: str, merged_entry: Dict) -> None:
-        block_id = f"MERGED_{key}"
-        self.client.insert_archival_memory(
-            self.agent_id,
-            f"DOCUMENTATION_{block_id}: {json.dumps(merged_entry)}"
-        )
+    async def update_memory_indices(self) -> None:
+        """Update memory search indices"""
+        # Implement memory index updating
+        pass
+
+    def _is_memory_important(self, memory: Dict[str, Any]) -> bool:
+        """Determine if a memory is important enough to keep"""
+        importance_factors = {
+            'access_frequency': self._get_access_frequency(memory),
+            'success_rate': self._get_success_rate(memory),
+            'relevance_score': self._calculate_relevance_score(memory)
+        }
+        
+        # Calculate weighted importance score
+        weights = {'access_frequency': 0.4, 'success_rate': 0.3, 'relevance_score': 0.3}
+        importance_score = sum(score * weights[factor] 
+                             for factor, score in importance_factors.items())
+        
+        return importance_score > 0.7
