@@ -6,3 +6,11 @@ requests
 langchain
 langchain-community
 tavily-python
+fastapi
+uvicorn
+psutil
+pyyaml
+pytest
+pytest-asyncio
+pytest-cov
+httpx
